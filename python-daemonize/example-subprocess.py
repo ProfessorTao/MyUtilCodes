@@ -1,5 +1,5 @@
 #--coding:utf-8--
-__author__ = "taotianyi"
+__author__ = "ProfessorTao"
 
 app_name = "example"
 app_daemon_name = "%s-%s" % (app_name, "daemon")
