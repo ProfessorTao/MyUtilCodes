@@ -1,10 +1,15 @@
 *.pyc
+*.class
 *.log
 *.err
+.idea
 .DS_Store
 
-/target/
-/cache/
-/log/
-/logs/
-
+target
+cache
+log
+logs
+build
+out
+gradle
+.gradle
