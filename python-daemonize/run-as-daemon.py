@@ -59,6 +59,47 @@ def test_run():
         break
 
 
+def is_process_running(pid):
+    cmd = "ps -ef | grep -v grep | awk '{print $2}' | grep -w %d" % pid
+    logger.info("Run find process %d command: %s" % (pid, cmd))
+    out = os.popen(cmd).read().strip()
+    return bool(out)
+
+
+def find_subprocesses(pid):
+    cmd = "ps -ef | grep -v grep | grep -w %d | awk '{print $2}'" % pid
+    logger.info("Run find subprocesses of %d command: %s" % (pid, cmd))
+    out = os.popen(cmd).read().strip()
+    current_pid = os.getpid()
+    subpids = [converters.to_int(x) for x in out.split("\n")]
+    subpids = filter(lambda x: x > 0 and x not in (pid, current_pid), subpids)
+    return subpids
+
+
+def find_all_subprocesses(pid):
+    running = is_process_running(pid)
+    if not running:
+        return list()
+    subpids = find_subprocesses(pid)
+    all_pids = [pid]
+    for each_subpid in subpids:
+        all_pids.append(each_subpid)
+        subsub_pids = find_all_subprocesses(each_subpid)
+        all_pids.extend(subsub_pids)
+    return all_pids
+
+
+def stop_processes(pids, signal=9):
+    if signal is not None:
+        cmd = "kill -%d " % signal
+    else:
+        cmd = "kill "
+    cmd += " ".join(map(str, pids))
+    logger.info("Run stop all processes command: %s" % command)
+    ret = os.system(cmd)
+    return ret
+
+
 def run_subprocess():
     # work_path = os.getcwd()
     # logger.debug("Current path: %s" % work_path)
@@ -99,7 +140,7 @@ def check_daemon():
         return False
 
 
-def stop_daemon():
+def stop_first_subprocesses():
     pid = -1
     try:
         fpr = open(daemon_config.pidfile, "r")
@@ -115,6 +156,28 @@ def stop_daemon():
         os.system(command)
         os.remove(daemon_config.pidfile)
         logger.info("Program <%s> has stopped!" % daemon_config.app_daemon_name)
+    else:
+        logger.info("Program <%s> is not running!" % daemon_config.app_daemon_name)
+
+
+def stop_daemon(signal=None):
+    pid = -1
+    try:
+        fpr = open(daemon_config.pidfile, "r")
+        pidstr = fpr.read().strip()
+        fpr.close()
+        pid = converters.to_int(pidstr, -1)
+    except:
+        pass
+    if pid > 0:
+        logger.info("Try to stop <%s>, command: %s" % (daemon_config.app_daemon_name, command))
+        all_pids = find_all_subprocesses()
+        all_pids_str = " ".join(map(str, all_pids))
+        logger.info("Get all pids for <%s>, detail: %s."
+                    % (daemon_config.app_daemon_name, all_pids_str))
+        ret = stop_processes(all_pids, signal)
+        logger.info("Program <%s> has stopped, kill return code is %d!"
+                    % (daemon_config.app_daemon_name, ret))
     else:
         logger.info("Program <%s> is not running!" % daemon_config.app_daemon_name)
 
